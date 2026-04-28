@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { Brain, Sparkles, Loader2, BookOpen } from 'lucide-react';
+import { getColumnTitle } from '../lib/utils';
 
 interface AIInsightsProps {
   stats: {
@@ -32,8 +33,8 @@ export function AIInsights({ stats }: AIInsightsProps) {
       const prompt = `
         你是一位專業的學術論文指導教授。請針對以下線性迴歸分析結果提供專業的解釋。
         分析數據：
-        - 自變量 (X): ${stats.xName}
-        - 因變量 (Y): ${stats.yName}
+        - 自變量 (X): ${getColumnTitle(stats.xName)}
+        - 因變量 (Y): ${getColumnTitle(stats.yName)}
         - 斜率 (Slope): ${stats.m.toFixed(4)}
         - 截距 (Intercept): ${stats.b.toFixed(4)}
         - 決定係數 (R-squared): ${stats.r2.toFixed(4)}

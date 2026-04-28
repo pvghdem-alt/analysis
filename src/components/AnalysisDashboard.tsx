@@ -10,7 +10,7 @@ import {
   Scatter
 } from 'recharts';
 import { performLinearRegression, DataPoint } from '../lib/stats';
-import { cn, getColumnTitle } from '../lib/utils';
+import { cn, getColumnTitle, columnGroups } from '../lib/utils';
 
 interface AnalysisDashboardProps {
   data: any[];
@@ -66,7 +66,20 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
                 onChange={(e) => setXVar(e.target.value)}
                 className="bg-transparent border-none p-0 font-bold text-sm focus:ring-0 cursor-pointer"
               >
-                {columns.map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
+                {columnGroups.map(group => {
+                  const opts = group.options.filter(c => columns.includes(c));
+                  if (opts.length === 0) return null;
+                  return (
+                    <optgroup key={group.label} label={group.label}>
+                      {opts.map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
+                    </optgroup>
+                  );
+                })}
+                {columns.filter(c => !columnGroups.some(g => g.options.includes(c))).length > 0 && (
+                  <optgroup label="其他">
+                     {columns.filter(c => !columnGroups.some(g => g.options.includes(c))).map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
+                  </optgroup>
+                )}
               </select>
             </div>
             <div className="bg-slate-50 p-4 rounded-2xl flex flex-col gap-1">
@@ -76,7 +89,20 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
                 onChange={(e) => setYVar(e.target.value)}
                 className="bg-transparent border-none p-0 font-bold text-sm focus:ring-0 cursor-pointer text-blue-600"
               >
-                {columns.map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
+                {columnGroups.map(group => {
+                  const opts = group.options.filter(c => columns.includes(c));
+                  if (opts.length === 0) return null;
+                  return (
+                    <optgroup key={group.label} label={group.label}>
+                      {opts.map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
+                    </optgroup>
+                  );
+                })}
+                {columns.filter(c => !columnGroups.some(g => g.options.includes(c))).length > 0 && (
+                  <optgroup label="其他">
+                     {columns.filter(c => !columnGroups.some(g => g.options.includes(c))).map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
+                  </optgroup>
+                )}
               </select>
             </div>
           </div>

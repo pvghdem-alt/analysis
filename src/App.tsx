@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as ss from 'simple-statistics';
-import { cn, getColumnTitle } from './lib/utils';
+import { cn, getColumnTitle, columnGroups } from './lib/utils';
 import { processSurveyAggregates } from './lib/stats';
 import { SurveyDetail } from './components/SurveyDetail';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
@@ -67,7 +67,20 @@ export default function App() {
       setEntries(loaded);
       
       const aggregateCols = ['Social_Support_Total', 'Hope_Total', 'Death_Attitude_Total'];
-      const finalCols = Array.from(new Set([...Array.from(colSet), ...aggregateCols]));
+      const rawCols = Array.from(colSet);
+      
+      const orderedCols: string[] = [];
+      columnGroups.forEach(g => {
+        g.options.forEach(opt => {
+          if (rawCols.includes(opt) || aggregateCols.includes(opt)) {
+            if(!orderedCols.includes(opt)) orderedCols.push(opt);
+          }
+        });
+      });
+      // push the rest
+      const rest = rawCols.filter(c => !orderedCols.includes(c));
+      const finalCols = [...orderedCols, ...rest];
+
       if(finalCols.length > 0) {
         setColumns(finalCols);
       }
@@ -94,7 +107,18 @@ export default function App() {
   };
 
   const handleDataExtracted = async (extractedData: any) => {
-    const dataObj = Array.isArray(extractedData) ? extractedData[0] : extractedData;
+    let dataObj = Array.isArray(extractedData) ? extractedData[0] : extractedData;
+    
+    // flatten nested json objects just in case AI returns them
+    const flatten = (obj: any): any => {
+      return Object.keys(obj).reduce((acc: any, k: string) => {
+        if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) Object.assign(acc, flatten(obj[k]));
+        else acc[k] = obj[k];
+        return acc;
+      }, {});
+    };
+    dataObj = flatten(dataObj);
+
     const processed = processSurveyAggregates(dataObj);
     processed.userId = localUserId;
     processed.createdAt = Date.now();
@@ -503,11 +527,11 @@ function StatsWrapper({ data, columns }: { data: any[], columns: string[] }) {
           <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-widest">因果分析變數</span>
           <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
             <select value={x} onChange={e => setX(e.target.value)} className="bg-transparent border-none text-sm font-bold p-0 focus:ring-0 outline-none">
-              {columns.map(c => <option key={c} value={c}>{c}</option>)}
+              {columns.map(c => <option key={c} value={c}>{getColumnTitle(c)}</option>)}
             </select>
             <span className="text-slate-300">→</span>
             <select value={y} onChange={e => setY(e.target.value)} className="bg-transparent border-none text-sm font-bold p-0 focus:ring-0 outline-none">
-              {columns.map(c => <option key={c} value={c}>{c}</option>)}
+              {columns.map(c => <option key={c} value={c}>{getColumnTitle(c)}</option>)}
             </select>
           </div>
         </div>

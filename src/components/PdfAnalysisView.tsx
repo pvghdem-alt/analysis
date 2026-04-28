@@ -76,7 +76,8 @@ export function PdfAnalysisView({ onDataExtracted, onAnalysed }: PdfAnalysisView
         - H_1 到 H_12: 希望量表的選項 (1-4)
         - DA_1 到 DA_32: 死亡態度量表的選項 (1-5)
         
-        請僅輸出 JSON 對象，不要包含 Markdown 格式等任何多餘文字。
+        請僅輸出「一個打平的 (flattened) JSON 對象」，不要包含 Markdown 格式等任何多餘文字，也不要作任何階層 (Nested) 的分組。
+        範例：{"Gender": "男", "Age_Y": "85", "SS_1": 4, "H_1": 3}
       `;
 
       const response = await ai.models.generateContent({

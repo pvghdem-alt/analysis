@@ -107,6 +107,39 @@ export const columnNamesTw: Record<string, string> = {
   DA_32: "32.對於死後的不確定性，讓我感到憂心",
 };
 
+export const columnGroups = [
+  {
+    label: "第一部分：【基本資料】",
+    options: [
+      "Gender", "Age_Y", "Age_M", "Education", "Marital", "Children", 
+      "Family_Visit", "Advance_Directive", "Income_Source", "Religion", 
+      "Assistive_Device", "Chronic_Disease", "ADL", "Health_Status", 
+      "Hope_Future", "Main_Supporter", "Move_In_Y", "Move_In_M"
+    ]
+  },
+  {
+    label: "第二部分：【社會支持量表】",
+    options: [
+      "Social_Support_Total",
+      ...Array.from({ length: 20 }, (_, i) => `SS_${i + 1}`)
+    ]
+  },
+  {
+    label: "第三部分：【希望量表】",
+    options: [
+      "Hope_Total",
+      ...Array.from({ length: 12 }, (_, i) => `H_${i + 1}`)
+    ]
+  },
+  {
+    label: "第四部份：【死亡態度量表】",
+    options: [
+      "Death_Attitude_Total",
+      ...Array.from({ length: 32 }, (_, i) => `DA_${i + 1}`)
+    ]
+  }
+];
+
 export function getColumnTitle(col: string) {
   if (columnNamesTw[col]) return columnNamesTw[col];
 
