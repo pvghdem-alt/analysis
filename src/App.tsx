@@ -183,10 +183,67 @@ export default function App() {
                 )}
 
                 {activeTab === 'settings' && (
-                  <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center">
-                    <Settings className="mx-auto text-slate-200 mb-4" size={48} />
-                    <h2 className="text-xl font-bold mb-2">模型配置</h2>
-                    <p className="text-slate-500 mb-8">您可以針對特定的統計顯著性水準 (Alpha) 進行全域設定。</p>
+                  <div className="max-w-2xl mx-auto space-y-8">
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                          <BrainCircuit size={24} />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold">AI 分析設定</h2>
+                          <p className="text-sm text-slate-500">設置您的 Gemini API 以啟用 AI 洞察指導功能</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Gemini API Key</label>
+                          <div className="flex gap-2">
+                            <input 
+                              type="password" 
+                              placeholder="在此輸入 API Key..." 
+                              className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                              defaultValue={process.env.GEMINI_API_KEY}
+                            />
+                            <button className="px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold">儲存</button>
+                          </div>
+                          <p className="mt-4 text-xs text-slate-400 leading-relaxed">
+                            注意：在 AI Studio 環境中，您的 API Key 會自動注入。如果您之後將專案導出至 GitHub 或是自行部署，請確保在 Secrets 面板中設定 <b>GEMINI_API_KEY</b>。
+                          </p>
+                        </div>
+
+                        <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
+                          <div>
+                            <h4 className="font-bold text-sm">如何獲取 API Key？</h4>
+                            <p className="text-xs text-slate-500">前往 Google AI Studio 獲取免費的 API 密鑰。</p>
+                          </div>
+                          <a 
+                            href="https://aistudio.google.com/app/apikey" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 font-bold text-xs flex items-center gap-1 hover:underline"
+                          >
+                            前往網頁 <Github size={12} />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl overflow-hidden relative">
+                      <div className="relative z-10">
+                        <h3 className="text-lg font-bold mb-2">學術道德與數據安全</h3>
+                        <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                          本工具僅供學術研究輔助使用。所有上傳的 CSV 數據僅存儲於瀏覽器記憶體中，關閉分頁後即會消失。AI 分析功能的準確性受選取變數與樣本量影響。
+                        </p>
+                        <div className="flex gap-3">
+                          <div className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-mono">TLS ENCRYPTED</div>
+                          <div className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-mono">LOCAL STORAGE NO-SYNC</div>
+                        </div>
+                      </div>
+                      <div className="absolute -right-8 -bottom-8 opacity-10">
+                        <BrainCircuit size={160} />
+                      </div>
+                    </div>
                   </div>
                 )}
               </motion.div>
