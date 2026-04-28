@@ -37,7 +37,14 @@ export function PdfAnalysisView({ onDataExtracted, onAnalysed }: PdfAnalysisView
 
   const performAiExtraction = async (base64Data: string, mimeType: string) => {
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const storedKey = localStorage.getItem('gemini_api_key');
+      const finalApiKey = storedKey || process.env.GEMINI_API_KEY;
+      
+      if (!finalApiKey) {
+        throw new Error("請先至「分析設定」頁面輸入您的 Gemini API Key！");
+      }
+
+      const ai = new GoogleGenAI({ apiKey: finalApiKey });
       
       const prompt = `
         你是一位專業的數據錄入專家。請識別這張問卷圖片或PDF中被落筆或打鉤的選項，並將其轉換為 JSON 格式。
