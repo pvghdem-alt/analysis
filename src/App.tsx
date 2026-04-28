@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import * as ss from 'simple-statistics';
 import { cn, getColumnTitle, columnGroups } from './lib/utils';
 import { processSurveyAggregates } from './lib/stats';
+import { extractDataPoints, performLinearRegression } from './lib/stats';
 import { SurveyDetail } from './components/SurveyDetail';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
 import { collection, onSnapshot, setDoc, doc, deleteDoc } from 'firebase/firestore';
@@ -564,15 +565,13 @@ function StatsWrapper({ data, columns }: { data: any[], columns: string[] }) {
 
   const stats = useMemo(() => {
     if (!x || !y) return null;
-    const points = data
-      .map(d => ({ x: parseFloat(d[x]), y: parseFloat(d[y]) }))
-      .filter(p => !isNaN(p.x) && !isNaN(p.y));
+    const { points } = extractDataPoints(data, x, y);
     if (points.length < 2) return null;
     
     try {
-      const { m, b } = ss.linearRegression(points.map(p => [p.x, p.y]));
-      const r2 = ss.sampleCorrelation(points.map(p => p.x), points.map(p => p.y)) ** 2;
-      return { m, b, r2, count: points.length, xName: x, yName: y };
+      const result = performLinearRegression(points);
+      if (!result) return null;
+      return { m: result.m, b: result.b, r2: result.r2, count: points.length, xName: x, yName: y };
     } catch (e) {
       return null;
     }

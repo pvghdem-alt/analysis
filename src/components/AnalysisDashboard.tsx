@@ -9,7 +9,7 @@ import {
   ComposedChart,
   Scatter
 } from 'recharts';
-import { performLinearRegression, DataPoint } from '../lib/stats';
+import { performLinearRegression, DataPoint, extractDataPoints } from '../lib/stats';
 import { cn, getColumnTitle, columnGroups } from '../lib/utils';
 
 interface AnalysisDashboardProps {
@@ -24,16 +24,13 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
   const stats = useMemo(() => {
     if (!xVar || !yVar) return null;
     
-    const points: DataPoint[] = data
-      .map(d => ({
-        x: parseFloat(d[xVar]),
-        y: parseFloat(d[yVar])
-      }))
-      .filter(p => !isNaN(p.x) && !isNaN(p.y));
+    const { points, xEncoder, yEncoder } = extractDataPoints(data, xVar, yVar);
 
     if (points.length < 2) return null;
 
     const result = performLinearRegression(points);
+    if (!result) return null;
+
     const minX = Math.min(...points.map(p => p.x));
     const maxX = Math.max(...points.map(p => p.x));
     
@@ -48,9 +45,22 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
       m: result.m,
       b: result.b,
       r2: result.r2,
-      count: points.length
+      count: points.length,
+      xEncoder,
+      yEncoder
     };
   }, [data, xVar, yVar]);
+
+  const getTickFormatter = (encoder: Record<string, number>) => {
+    const decoder: Record<number, string> = {};
+    for (const [k, v] of Object.entries(encoder)) {
+      decoder[v] = k;
+    }
+    return (val: number) => {
+      if (decoder[val] !== undefined) return decoder[val];
+      return String(val);
+    };
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -149,6 +159,7 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
                   tickLine={false}
                   axisLine={false}
                   dy={10}
+                  tickFormatter={getTickFormatter(stats.xEncoder)}
                 />
                 <YAxis 
                   type="number" 
@@ -159,8 +170,15 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
                   tickLine={false}
                   axisLine={false}
                   dx={-10}
+                  tickFormatter={getTickFormatter(stats.yEncoder)}
                 />
                 <Tooltip 
+                  formatter={(value: number, name: string) => {
+                    if (name === getColumnTitle(xVar) || name === 'x') return [getTickFormatter(stats.xEncoder)(value), getColumnTitle(xVar)];
+                    if (name === getColumnTitle(yVar) || name === 'y') return [getTickFormatter(stats.yEncoder)(value), getColumnTitle(yVar)];
+                    if (name === 'lineY') return;
+                    return [value, name];
+                  }}
                   contentStyle={{ 
                     borderRadius: '16px', 
                     border: 'none', 
