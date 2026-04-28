@@ -57,10 +57,10 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
       {/* Stats Summary Panel */}
       <div className="lg:col-span-4 space-y-6">
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Variable Mapping</div>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">變數對應</div>
           <div className="space-y-4">
             <div className="bg-slate-50 p-4 rounded-2xl flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase">Independent (X)</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">自變數 (X)</label>
               <select 
                 value={xVar} 
                 onChange={(e) => setXVar(e.target.value)}
@@ -70,7 +70,7 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
               </select>
             </div>
             <div className="bg-slate-50 p-4 rounded-2xl flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase">Dependent (Y)</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">依變數 (Y)</label>
               <select 
                 value={yVar} 
                 onChange={(e) => setYVar(e.target.value)}
@@ -84,11 +84,11 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
 
         {stats && (
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm divide-y divide-slate-100">
-             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Regression Summary</div>
-             <StatRow label="R-Squared" value={stats.r2.toFixed(4)} highlight />
-             <StatRow label="Slope (m)" value={stats.m.toFixed(4)} />
-             <StatRow label="Intercept (b)" value={stats.b.toFixed(4)} />
-             <StatRow label="Sample Size" value={stats.count.toString()} valueColor="text-emerald-600" />
+             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">迴歸分析結果</div>
+             <StatRow label="R平方 (R-Squared)" value={stats.r2.toFixed(4)} highlight />
+             <StatRow label="斜率 (Slope)" value={stats.m.toFixed(4)} />
+             <StatRow label="截距 (Intercept)" value={stats.b.toFixed(4)} />
+             <StatRow label="樣本數" value={stats.count.toString()} valueColor="text-emerald-600" />
           </div>
         )}
       </div>
@@ -143,7 +143,7 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
                     fontWeight: 'bold'
                   }} 
                 />
-                <Scatter name="Data Points" data={stats.points} fill="#0f172a" fillOpacity={0.2} radius={3} />
+                <Scatter name="樣本點" data={stats.points} fill="#0f172a" fillOpacity={0.2} radius={3} />
                 <Line 
                   data={stats.lineData} 
                   type="monotone" 
