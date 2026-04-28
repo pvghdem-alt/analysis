@@ -22,7 +22,7 @@ import { SurveyDetail } from './components/SurveyDetail';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
 import { collection, onSnapshot, setDoc, doc, deleteDoc } from 'firebase/firestore';
 
-type Tab = 'dashboard' | 'data' | 'pdf' | 'settings';
+type Tab = 'dashboard' | 'data' | 'pdf';
 
 interface SurveyEntry {
   id: string;
@@ -32,6 +32,7 @@ interface SurveyEntry {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
   const [entries, setEntries] = useState<SurveyEntry[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   
@@ -181,7 +182,12 @@ export default function App() {
           />
           
           <div className="pt-8 text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-4">System</div>
-          <SidebarItem active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<Settings size={18} />} label="分析設定" />
+          <SidebarItem 
+            active={false} 
+            onClick={() => setIsApiModalOpen(true)} 
+            icon={<Settings size={18} />} 
+            label="設定 API KEY" 
+          />
         </nav>
 
         <div className="mt-auto space-y-4">
@@ -243,15 +249,18 @@ export default function App() {
                     onAnalysed={() => setActiveTab('data')} 
                   />
                 )}
-
-                {activeTab === 'settings' && (
-                  <SettingsView />
-                )}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </main>
+
+      {/* API Key Modal */}
+      <AnimatePresence>
+        {isApiModalOpen && (
+          <ApiKeyModal onClose={() => setIsApiModalOpen(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -384,81 +393,80 @@ function DataTableView({ entries, columns, onToggle, onToggleAll }: { entries: S
   );
 }
 
-function SettingsView() {
+function ApiKeyModal({ onClose }: { onClose: () => void }) {
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
     localStorage.setItem('gemini_api_key', apiKey);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => {
+      setSaved(false);
+      onClose();
+    }, 1000);
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
-      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
-            <BrainCircuit size={24} />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold">AI 分析設定</h2>
-            <p className="text-sm text-slate-500">設置您的 Gemini API 以啟用 AI 洞察指導功能</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Gemini API Key</label>
-            <div className="flex gap-2">
-              <input 
-                type="password" 
-                placeholder="在此輸入 API Key..." 
-                className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-              />
-              <button onClick={handleSave} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 transition-colors text-white rounded-xl text-sm font-bold">
-                {saved ? '已儲存' : '儲存設定'}
-              </button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden"
+      >
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                <BrainCircuit size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">設定 API Key</h2>
+                <p className="text-sm text-slate-500">輸入您的 Gemini API 密鑰</p>
+              </div>
             </div>
-            <p className="mt-4 text-xs text-slate-400 leading-relaxed">
-              注意：如果您之後將專案導出至 GitHub Pages 或是自行部署，您必須在此輸入並儲存自己的 Gemini API Key 才能執行 AI 識別。您的密鑰將安全地保存在瀏覽器本地存儲中。
-            </p>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
           </div>
 
-          <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
+          <div className="space-y-4">
             <div>
-              <h4 className="font-bold text-sm">如何獲取 API Key？</h4>
-              <p className="text-xs text-slate-500">前往 Google AI Studio 獲取免費的 API 密鑰。</p>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Gemini API Key</label>
+              <div className="flex gap-2">
+                <input 
+                  type="password" 
+                  placeholder="在此輸入 API Key..." 
+                  className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                />
+                <button onClick={handleSave} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 transition-colors text-white rounded-xl text-sm font-bold">
+                  {saved ? '已儲存' : '儲存'}
+                </button>
+              </div>
+              <p className="mt-4 text-xs text-slate-400 leading-relaxed">
+                您的密鑰將安全地保存在瀏覽器本地存儲中。用於分析提取問卷內容。
+              </p>
             </div>
-            <a 
-              href="https://aistudio.google.com/app/apikey" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-600 font-bold text-xs flex items-center gap-1 hover:underline"
-            >
-              前往網頁 <Github size={12} />
-            </a>
-          </div>
-        </div>
-      </div>
 
-      <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl overflow-hidden relative">
-        <div className="relative z-10">
-          <h3 className="text-lg font-bold mb-2">學術道德與數據安全</h3>
-          <p className="text-slate-400 text-sm leading-relaxed mb-6">
-            本工具僅供學術研究輔助使用。所有上傳的 CSV 數據僅存儲於瀏覽器記憶體中，關閉分頁後即會消失。AI 分析功能的準確性受選取變數與樣本量影響。
-          </p>
-          <div className="flex gap-3">
-            <div className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-mono">TLS ENCRYPTED</div>
-            <div className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-mono">LOCAL STORAGE NO-SYNC</div>
+            <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-sm text-slate-900">如何獲取 API Key？</h4>
+                <p className="text-xs text-slate-500">前往 Google AI Studio 免費獲取</p>
+              </div>
+              <a 
+                href="https://aistudio.google.com/app/apikey" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 font-bold text-xs flex items-center gap-1 hover:underline"
+              >
+                前往獲取 <Github size={12} />
+              </a>
+            </div>
           </div>
         </div>
-        <div className="absolute -right-8 -bottom-8 opacity-10">
-          <BrainCircuit size={160} />
-        </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
