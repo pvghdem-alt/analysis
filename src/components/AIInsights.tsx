@@ -20,7 +20,15 @@ export function AIInsights({ stats }: AIInsightsProps) {
   const generateInsight = async () => {
     setLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const storedKey = localStorage.getItem('gemini_api_key');
+      const envKey = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined;
+      const finalApiKey = storedKey || envKey;
+      
+      if (!finalApiKey) {
+        throw new Error("請先至「分析設定」頁面輸入您的 Gemini API Key！");
+      }
+
+      const ai = new GoogleGenAI({ apiKey: finalApiKey });
       const prompt = `
         你是一位專業的學術論文指導教授。請針對以下線性迴歸分析結果提供專業的解釋。
         分析數據：

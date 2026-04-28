@@ -38,7 +38,8 @@ export function PdfAnalysisView({ onDataExtracted, onAnalysed }: PdfAnalysisView
   const performAiExtraction = async (base64Data: string, mimeType: string) => {
     try {
       const storedKey = localStorage.getItem('gemini_api_key');
-      const finalApiKey = storedKey || process.env.GEMINI_API_KEY;
+      const envKey = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined;
+      const finalApiKey = storedKey || envKey;
       
       if (!finalApiKey) {
         throw new Error("請先至「分析設定」頁面輸入您的 Gemini API Key！");
@@ -79,7 +80,7 @@ export function PdfAnalysisView({ onDataExtracted, onAnalysed }: PdfAnalysisView
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         contents: {
           parts: [
             { inlineData: { data: base64Data, mimeType: mimeType } },

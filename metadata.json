@@ -1,5 +1,5 @@
 {
-  "name": "Thesis Analytics Hub",
+  "name": "問券統計分析",
   "description": "An AI-powered linear regression and survey analysis tool for academic research. Upload survey data, perform statistical tests, and get AI interpreted insights for your thesis.",
   "requestFramePermissions": [],
   "majorCapabilities": []

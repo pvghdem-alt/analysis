@@ -20,11 +20,9 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isValidId(surveyId)
                     && isValidSurvey(incoming())
-                    && incoming().createdAt == request.time.toMillis()
-                    && incoming().keys().size() <= 60;
+                    && incoming().keys().size() <= 150;
       allow update: if isValidSurvey(incoming())
-                    && incoming().userId == existing().userId
-                    && incoming().createdAt == existing().createdAt;
+                    && incoming().userId == existing().userId;
       allow delete: if true;
     }
   }

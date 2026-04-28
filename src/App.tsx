@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as ss from 'simple-statistics';
-import { cn } from './lib/utils';
+import { cn, getColumnTitle } from './lib/utils';
 import { processSurveyAggregates } from './lib/stats';
 import { SurveyDetail } from './components/SurveyDetail';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
@@ -156,7 +156,7 @@ export default function App() {
           <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
             <BrainCircuit className="text-white" size={20} />
           </div>
-          <span className="font-bold text-xl tracking-tight">StatsPro AI</span>
+          <span className="font-bold text-xl tracking-tight">問券統計分析</span>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -358,7 +358,7 @@ function DataTableView({ entries, columns, onToggle, onToggleAll }: { entries: S
           <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
             <tr>
               <th className="px-6 py-4 font-bold text-slate-500 w-16">選入</th>
-              {columns.map(c => <th key={c} className="px-6 py-4 font-bold text-slate-500 whitespace-nowrap">{c}</th>)}
+              {columns.map(c => <th key={c} className="px-6 py-4 font-bold text-slate-500 whitespace-nowrap">{getColumnTitle(c)}</th>)}
             </tr>
           </thead>
           <tbody>

@@ -10,7 +10,7 @@ import {
   Scatter
 } from 'recharts';
 import { performLinearRegression, DataPoint } from '../lib/stats';
-import { cn } from '../lib/utils';
+import { cn, getColumnTitle } from '../lib/utils';
 
 interface AnalysisDashboardProps {
   data: any[];
@@ -66,7 +66,7 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
                 onChange={(e) => setXVar(e.target.value)}
                 className="bg-transparent border-none p-0 font-bold text-sm focus:ring-0 cursor-pointer"
               >
-                {columns.map(col => <option key={col} value={col}>{col}</option>)}
+                {columns.map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
               </select>
             </div>
             <div className="bg-slate-50 p-4 rounded-2xl flex flex-col gap-1">
@@ -76,7 +76,7 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
                 onChange={(e) => setYVar(e.target.value)}
                 className="bg-transparent border-none p-0 font-bold text-sm focus:ring-0 cursor-pointer text-blue-600"
               >
-                {columns.map(col => <option key={col} value={col}>{col}</option>)}
+                {columns.map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
               </select>
             </div>
           </div>
@@ -117,7 +117,7 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
                 <XAxis 
                   type="number" 
                   dataKey="x" 
-                  name={xVar} 
+                  name={getColumnTitle(xVar)} 
                   stroke="#94a3b8"
                   fontSize={11}
                   tickLine={false}
@@ -127,7 +127,7 @@ export function AnalysisDashboard({ data, columns }: AnalysisDashboardProps) {
                 <YAxis 
                   type="number" 
                   dataKey="y" 
-                  name={yVar} 
+                  name={getColumnTitle(yVar)} 
                   stroke="#94a3b8"
                   fontSize={11}
                   tickLine={false}
