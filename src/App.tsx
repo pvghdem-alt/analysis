@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { DataImporter } from './components/DataImporter';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
 import { AIInsights } from './components/AIInsights';
+import { PdfAnalysisView } from './components/PdfAnalysisView';
 import { 
   BarChart3, 
   Table as TableIcon, 
@@ -11,11 +12,13 @@ import {
   Settings,
   CheckCircle2,
   Sparkles,
-  FileText
+  Github
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as ss from 'simple-statistics';
 import { cn } from './lib/utils';
+import { processSurveyAggregates } from './lib/stats';
+import { SurveyDetail } from './components/SurveyDetail';
 
 type Tab = 'dashboard' | 'data' | 'pdf' | 'settings';
 
@@ -31,7 +34,6 @@ export default function App() {
   const [columns, setColumns] = useState<string[]>([]);
 
   const handleDataLoaded = (data: any[], cols: string[]) => {
-    // 自動計算總分並映射數據
     const newEntries = data.map((d, i) => {
       const processed = processSurveyAggregates(d);
       return {
@@ -43,11 +45,28 @@ export default function App() {
     
     setEntries(newEntries);
     
-    // 將計算出的總分欄位也加入可選擇的欄位列表中
     const aggregateCols = ['Social_Support_Total', 'Hope_Total', 'Death_Attitude_Total'];
-    const finalCols = [...cols, ...aggregateCols];
+    const finalCols = Array.from(new Set([...cols, ...aggregateCols]));
     setColumns(finalCols);
     setActiveTab('dashboard');
+  };
+
+  const handleDataExtracted = (extractedData: any) => {
+    // If the AI returned an array, take the first item or handle all
+    const dataObj = Array.isArray(extractedData) ? extractedData[0] : extractedData;
+    
+    const processed = processSurveyAggregates(dataObj);
+    const newEntry: SurveyEntry = {
+      id: `ai-${Date.now()}`,
+      data: processed,
+      included: true
+    };
+    
+    setEntries(prev => [...prev, newEntry]);
+    
+    const currentCols = new Set(columns);
+    Object.keys(processed).forEach(key => currentCols.add(key));
+    setColumns(Array.from(currentCols));
   };
 
   const toggleEntry = (id: string) => {
@@ -63,23 +82,28 @@ export default function App() {
   }, [entries]);
 
   const downloadSampleCSV = () => {
-    // 根據正式問卷產生欄位
-    const basicInfo = ["Gender", "Age_Y", "Education", "Marital", "Children", "ADL", "Health_Status"];
+    const basicInfo = [
+      "Gender", "Age_Y", "Age_M", "Education", "Marital", "Children", 
+      "Family_Visit", "Advance_Directive", "Income_Source", "Religion", 
+      "Assistive_Device", "Chronic_Disease", "ADL", "Health_Status", 
+      "Hope_Future", "Main_Supporter", "Move_In_Y", "Move_In_M"
+    ];
     const ssItems = Array.from({length: 20}, (_, i) => `SS_${i+1}`);
     const hopeItems = Array.from({length: 12}, (_, i) => `H_${i+1}`);
     const daItems = Array.from({length: 32}, (_, i) => `DA_${i+1}`);
     
     const allHeaders = [...basicInfo, ...ssItems, ...hopeItems, ...daItems].join(",");
     
-    // 產生一筆範例數據
     const sampleRow = [
-      "1", "85", "2", "3", "2", "80", "4", // Basic
-      ...Array(20).fill(4), // SS (1-5)
-      ...Array(12).fill(3), // Hope (1-4)
-      ...Array(32).fill(3)  // DA (1-5)
+      "女", "85", "9", "大學", "已婚有偶", "2", "幾乎沒有", "未簽署", 
+      "政府補助", "道教", "無", "無", "80", "普通", "較無希望", 
+      "其他家人", "90", "5",
+      ...Array(20).fill(4),
+      ...Array(12).fill(3),
+      ...Array(32).fill(3)
     ].join(",");
 
-    const blob = new Blob([allHeaders + "\n" + sampleRow], { type: 'text/csv' });
+    const blob = new Blob([allHeaders + "\n" + sampleRow], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -89,7 +113,6 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-[#f1f5f9] text-gray-900 overflow-hidden font-sans">
-      {/* Sidebar - Professional Polish Style */}
       <aside className="w-[260px] bg-[#0f172a] text-[#f8fafc] flex flex-col p-6 shrink-0 z-20">
         <div className="flex items-center gap-3 mb-10">
           <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
@@ -117,7 +140,7 @@ export default function App() {
             active={activeTab === 'pdf'} 
             onClick={() => setActiveTab('pdf')} 
             icon={<FileUp size={18} />} 
-            label="PDF 問卷識別" 
+            label="問卷自動識別" 
           />
           
           <div className="pt-8 text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-4">System</div>
@@ -134,12 +157,11 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden relative text-slate-900 overflow-y-auto">
         <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-50">
           <div>
             <span className="text-slate-400 text-sm">研究項目 / </span>
-            <span className="font-semibold text-sm">Thesis_Regression_Analysis_2026</span>
+            <span className="font-semibold text-sm">Thesis_Regression_Analysis_2k26</span>
           </div>
           <div className="flex gap-4">
             {entries.length > 0 && (
@@ -149,7 +171,7 @@ export default function App() {
               </div>
             )}
             <div className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider">
-              AI 模型: Gemini 1.5 Flash
+              AI 模型: Gemini 3 Flash
             </div>
           </div>
         </header>
@@ -179,72 +201,14 @@ export default function App() {
                 )}
 
                 {activeTab === 'pdf' && (
-                  <PdfAnalysisView onAnalysed={() => setActiveTab('dashboard')} />
+                  <PdfAnalysisView 
+                    onDataExtracted={handleDataExtracted} 
+                    onAnalysed={() => setActiveTab('data')} 
+                  />
                 )}
 
                 {activeTab === 'settings' && (
-                  <div className="max-w-2xl mx-auto space-y-8">
-                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                      <div className="flex items-center gap-4 mb-6">
-                        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
-                          <BrainCircuit size={24} />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-bold">AI 分析設定</h2>
-                          <p className="text-sm text-slate-500">設置您的 Gemini API 以啟用 AI 洞察指導功能</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Gemini API Key</label>
-                          <div className="flex gap-2">
-                            <input 
-                              type="password" 
-                              placeholder="在此輸入 API Key..." 
-                              className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                              defaultValue={process.env.GEMINI_API_KEY}
-                            />
-                            <button className="px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold">儲存</button>
-                          </div>
-                          <p className="mt-4 text-xs text-slate-400 leading-relaxed">
-                            注意：在 AI Studio 環境中，您的 API Key 會自動注入。如果您之後將專案導出至 GitHub 或是自行部署，請確保在 Secrets 面板中設定 <b>GEMINI_API_KEY</b>。
-                          </p>
-                        </div>
-
-                        <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
-                          <div>
-                            <h4 className="font-bold text-sm">如何獲取 API Key？</h4>
-                            <p className="text-xs text-slate-500">前往 Google AI Studio 獲取免費的 API 密鑰。</p>
-                          </div>
-                          <a 
-                            href="https://aistudio.google.com/app/apikey" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 font-bold text-xs flex items-center gap-1 hover:underline"
-                          >
-                            前往網頁 <Github size={12} />
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl overflow-hidden relative">
-                      <div className="relative z-10">
-                        <h3 className="text-lg font-bold mb-2">學術道德與數據安全</h3>
-                        <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                          本工具僅供學術研究輔助使用。所有上傳的 CSV 數據僅存儲於瀏覽器記憶體中，關閉分頁後即會消失。AI 分析功能的準確性受選取變數與樣本量影響。
-                        </p>
-                        <div className="flex gap-3">
-                          <div className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-mono">TLS ENCRYPTED</div>
-                          <div className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-mono">LOCAL STORAGE NO-SYNC</div>
-                        </div>
-                      </div>
-                      <div className="absolute -right-8 -bottom-8 opacity-10">
-                        <BrainCircuit size={160} />
-                      </div>
-                    </div>
-                  </div>
+                  <SettingsView />
                 )}
               </motion.div>
             )}
@@ -255,7 +219,6 @@ export default function App() {
   );
 }
 
-// Sub-components
 function SidebarItem({ active, onClick, icon, label, badge }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string, badge?: string }) {
   return (
     <button 
@@ -290,7 +253,7 @@ function WelcomeView({ onDataLoaded, onPdfClick }: { onDataLoaded: (d: any[], c:
         </div>
         <h1 className="text-5xl font-bold tracking-tight text-slate-900 mb-6 font-serif">從問卷到學術結論<br/>僅需數秒。</h1>
         <p className="text-lg text-slate-500 max-w-xl mx-auto">
-          專業的統計分析與 AI 解讀工具。您可以選擇上傳問卷數據檔案，或是讓 AI 協助解析您的 PDF 問卷設計。
+          專業的統計分析與 AI 解讀工具。您可以選擇上傳問卷數據檔案，或是讓 AI 協助解析您拍攝的已填寫問卷。
         </p>
       </div>
 
@@ -305,8 +268,8 @@ function WelcomeView({ onDataLoaded, onPdfClick }: { onDataLoaded: (d: any[], c:
           <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
             <FileUp size={32} />
           </div>
-          <h3 className="font-bold text-lg mb-2">上傳問卷 PDF</h3>
-          <p className="text-sm text-slate-500">AI 將協助您理解問卷題目，並為後續數據匯入生成相應的格式。</p>
+          <h3 className="font-bold text-lg mb-2">AI 識別紙本問卷</h3>
+          <p className="text-sm text-slate-500">拍攝已勾選的紙本問卷，AI 將自動提取數據並彙集成表。</p>
         </div>
       </div>
     </div>
@@ -315,9 +278,15 @@ function WelcomeView({ onDataLoaded, onPdfClick }: { onDataLoaded: (d: any[], c:
 
 function DataTableView({ entries, columns, onToggle, onToggleAll }: { entries: SurveyEntry[], columns: string[], onToggle: (id: string) => void, onToggleAll: (inc: boolean) => void }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedEntry, setSelectedEntry] = useState<SurveyEntry | null>(null);
+
   const filtered = entries.filter(e => 
     Object.values(e.data).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  if (selectedEntry) {
+    return <SurveyDetail entry={selectedEntry} onBack={() => setSelectedEntry(null)} />;
+  }
 
   return (
     <div className="space-y-6">
@@ -330,7 +299,7 @@ function DataTableView({ entries, columns, onToggle, onToggleAll }: { entries: S
           <input 
             type="text" 
             placeholder="搜尋樣本內容..." 
-            className="px-4 py-2 bg-slate-100 border-none rounded-xl text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none"
+            className="px-4 py-2 bg-slate-100 border-none rounded-xl text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none font-sans"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -340,21 +309,35 @@ function DataTableView({ entries, columns, onToggle, onToggleAll }: { entries: S
       </div>
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="bg-slate-50 border-b border-slate-100">
+          <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
             <tr>
               <th className="px-6 py-4 font-bold text-slate-500 w-16">選入</th>
-              {columns.map(c => <th key={c} className="px-6 py-4 font-bold text-slate-500 capitalize">{c.replace(/_/g, ' ')}</th>)}
+              {columns.map(c => <th key={c} className="px-6 py-4 font-bold text-slate-500 whitespace-nowrap">{c}</th>)}
             </tr>
           </thead>
           <tbody>
             {filtered.map(e => (
-              <tr key={e.id} className={cn("border-b border-slate-50", !e.included && "opacity-40 grayscale")}>
-                <td className="px-6 py-4">
+              <tr 
+                key={e.id} 
+                className={cn("border-b border-slate-50 hover:bg-slate-50/50 transition-colors cursor-pointer", !e.included && "opacity-40 grayscale bg-slate-100/30")}
+                onClick={() => setSelectedEntry(e)}
+              >
+                <td className="px-6 py-4" onClick={(ev) => ev.stopPropagation()}>
                   <button onClick={() => onToggle(e.id)} className={cn("w-5 h-5 rounded border flex items-center justify-center transition-colors", e.included ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 text-transparent")}>
                     <CheckCircle2 size={12} />
                   </button>
                 </td>
-                {columns.map(c => <td key={c} className="px-6 py-4 font-medium">{e.data[c]}</td>)}
+                {columns.map(c => {
+                  let val = e.data[c];
+                  if (typeof val === 'object' && val !== null) {
+                     val = Array.isArray(val) ? val.join(', ') : JSON.stringify(val);
+                  }
+                  return (
+                    <td key={c} className="px-6 py-4 font-medium whitespace-nowrap">
+                      {val ?? '-'}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -364,50 +347,84 @@ function DataTableView({ entries, columns, onToggle, onToggleAll }: { entries: S
   );
 }
 
-function PdfAnalysisView({ onAnalysed }: { onAnalysed: () => void }) {
-  const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-
-  const startAnalysis = () => {
-    setAnalyzing(true);
-    setTimeout(() => {
-      setAnalyzing(false);
-      setResult("AI 已完成問卷 PDF 深度掃描。\n\n識別主題：學生學業壓力與心理彈性關係研究\n\n建議變數對應：\nX1 (壓力指數): Q1-Q15\nY (學業表現): 總平均成績\n\n已根據此結構產生「學術優化版 CSV 範例」，您可以點擊下載後填寫數據。");
-    }, 2000);
-  };
-
+function SettingsView() {
   return (
-    <div className="max-w-2xl mx-auto bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-8 shadow-sm">
-      <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto">
-        <FileText size={40} />
+    <div className="max-w-2xl mx-auto space-y-8">
+      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+            <BrainCircuit size={24} />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold">AI 分析設定</h2>
+            <p className="text-sm text-slate-500">設置您的 Gemini API 以啟用 AI 洞察指導功能</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Gemini API Key</label>
+            <div className="flex gap-2">
+              <input 
+                type="password" 
+                placeholder="在此輸入 API Key..." 
+                className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                defaultValue={process.env.GEMINI_API_KEY}
+              />
+              <button className="px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold">儲存</button>
+            </div>
+            <p className="mt-4 text-xs text-slate-400 leading-relaxed">
+              注意：在 AI Studio 環境中，您的 API Key 會自動注入。如果您之後將專案導出至 GitHub 或是自行部署，請確保在 Secrets 面板中設定 <b>GEMINI_API_KEY</b>。
+            </p>
+          </div>
+
+          <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
+            <div>
+              <h4 className="font-bold text-sm">如何獲取 API Key？</h4>
+              <p className="text-xs text-slate-500">前往 Google AI Studio 獲取免費的 API 密鑰。</p>
+            </div>
+            <a 
+              href="https://aistudio.google.com/app/apikey" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 font-bold text-xs flex items-center gap-1 hover:underline"
+            >
+              前往網頁 <Github size={12} />
+            </a>
+          </div>
+        </div>
       </div>
-      <div>
-        <h2 className="text-2xl font-bold mb-2">PDF 問卷結構識別</h2>
-        <p className="text-slate-500">上傳您的問卷設計稿，AI 會自動規劃變數名稱與統計路徑。</p>
+
+      <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl overflow-hidden relative">
+        <div className="relative z-10">
+          <h3 className="text-lg font-bold mb-2">學術道德與數據安全</h3>
+          <p className="text-slate-400 text-sm leading-relaxed mb-6">
+            本工具僅供學術研究輔助使用。所有上傳的 CSV 數據僅存儲於瀏覽器記憶體中，關閉分頁後即會消失。AI 分析功能的準確性受選取變數與樣本量影響。
+          </p>
+          <div className="flex gap-3">
+            <div className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-mono">TLS ENCRYPTED</div>
+            <div className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-mono">LOCAL STORAGE NO-SYNC</div>
+          </div>
+        </div>
+        <div className="absolute -right-8 -bottom-8 opacity-10">
+          <BrainCircuit size={160} />
+        </div>
       </div>
-      <div className="border-2 border-dashed border-slate-200 rounded-2xl p-12 bg-slate-50">
-        <input type="file" accept=".pdf" className="hidden" id="pdf-input" onChange={startAnalysis} />
-        <label htmlFor="pdf-input" className="cursor-pointer">
-          <FileUp className="mx-auto text-slate-300 mb-4" size={32} />
-          <p className="text-sm font-bold text-slate-600">選擇 PDF 文件並開始 AI 分析</p>
-        </label>
-      </div>
-      {analyzing && <div className="text-blue-600 font-bold animate-pulse">AI 研究教授思考中...</div>}
-      {result && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-slate-50 p-6 rounded-2xl text-left text-sm whitespace-pre-wrap border border-slate-200">
-          <p className="mb-6">{result}</p>
-          <button onClick={onAnalysed} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest">前往儀表板匯入數據</button>
-        </motion.div>
-      )}
     </div>
   );
 }
 
 function StatsWrapper({ data, columns }: { data: any[], columns: string[] }) {
-  const [x, setX] = useState(columns[0] || '');
-  const [y, setY] = useState(columns[1] || '');
+  const [x, setX] = useState('');
+  const [y, setY] = useState('');
+
+  React.useEffect(() => {
+    if (!x && columns.length > 0) setX(columns[0]);
+    if (!y && columns.length > 1) setY(columns[1]);
+  }, [columns]);
 
   const stats = useMemo(() => {
+    if (!x || !y) return null;
     const points = data
       .map(d => ({ x: parseFloat(d[x]), y: parseFloat(d[y]) }))
       .filter(p => !isNaN(p.x) && !isNaN(p.y));
@@ -424,22 +441,24 @@ function StatsWrapper({ data, columns }: { data: any[], columns: string[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 flex items-center gap-6">
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 flex items-center gap-6 shadow-sm">
         <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">因果分析變數</span>
-          <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl">
-            <select value={x} onChange={e => setX(e.target.value)} className="bg-transparent border-none text-sm font-bold p-0 focus:ring-0">
+          <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-widest">因果分析變數</span>
+          <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
+            <select value={x} onChange={e => setX(e.target.value)} className="bg-transparent border-none text-sm font-bold p-0 focus:ring-0 outline-none">
               {columns.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <span className="text-slate-300">→</span>
-            <select value={y} onChange={e => setY(e.target.value)} className="bg-transparent border-none text-sm font-bold p-0 focus:ring-0">
+            <select value={y} onChange={e => setY(e.target.value)} className="bg-transparent border-none text-sm font-bold p-0 focus:ring-0 outline-none">
               {columns.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+        </div>
+        <div className="ml-auto text-xs text-slate-400 font-serif italic text-right">
+          系統將自動計算兩變數間的線性關係
         </div>
       </div>
       {stats && <AIInsights stats={stats} />}
     </div>
   );
 }
-

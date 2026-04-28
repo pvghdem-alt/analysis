@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import Papa from 'papaparse';
 import { Upload, FileSpreadsheet, X } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
+import { cn } from '../lib/utils';
 
 interface DataImporterProps {
   onDataLoaded: (data: any[], columns: string[]) => void;
@@ -43,9 +43,9 @@ export function DataImporter({ onDataLoaded }: DataImporterProps) {
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
       className={cn(
-        "relative border-2 border-dashed rounded-xl p-8 transition-all duration-200 text-center",
-        isDragging ? "border-black bg-gray-50" : "border-gray-200 hover:border-gray-400",
-        fileName ? "bg-gray-50" : "bg-white"
+        "relative border-2 border-dashed rounded-3xl p-12 transition-all duration-300 text-center",
+        isDragging ? "border-blue-500 bg-blue-50/50" : "border-slate-200 hover:border-slate-300 bg-white",
+        fileName ? "bg-slate-50" : ""
       )}
     >
       <input
@@ -55,31 +55,33 @@ export function DataImporter({ onDataLoaded }: DataImporterProps) {
         onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
       />
       
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-4">
         {fileName ? (
           <>
-            <div className="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center">
-              <FileSpreadsheet size={24} />
+            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
+              <FileSpreadsheet size={32} />
             </div>
             <div>
-              <p className="font-medium text-gray-900">{fileName}</p>
-              <p className="text-sm text-gray-500">文件已成功載入</p>
+              <p className="font-bold text-slate-900">{fileName}</p>
+              <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest font-mono">FILE LOADED SUCCESSFULLY</p>
             </div>
             <button 
               onClick={(e) => { e.stopPropagation(); setFileName(null); }}
-              className="mt-2 text-xs text-red-500 hover:underline"
+              className="mt-2 text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
             >
-              移除文件
+              <X size={12} /> 重新上傳
             </button>
           </>
         ) : (
           <>
-            <div className="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center">
-              <Upload size={24} />
+            <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Upload size={32} />
             </div>
             <div>
-              <p className="font-medium text-gray-900">點擊或拖拽 CSV 文件至此</p>
-              <p className="text-sm text-gray-500">支持問卷導出的數據格式</p>
+              <p className="font-bold text-slate-900 text-lg">匯入研究數據</p>
+              <p className="text-sm text-slate-500 max-w-[200px] mx-auto mt-2 leading-relaxed">
+                點擊或拖拽 CSV 文件至此開始分析
+              </p>
             </div>
           </>
         )}

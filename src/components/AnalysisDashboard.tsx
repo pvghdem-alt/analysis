@@ -9,7 +9,8 @@ import {
   ComposedChart,
   Scatter
 } from 'recharts';
-import { performLinearRegression, DataPoint } from '@/src/lib/stats';
+import { performLinearRegression, DataPoint } from '../lib/stats';
+import { cn } from '../lib/utils';
 
 interface AnalysisDashboardProps {
   data: any[];
