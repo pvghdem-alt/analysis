@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { DataImporter } from './components/DataImporter';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
 import { AIInsights } from './components/AIInsights';
@@ -12,13 +12,17 @@ import {
   Settings,
   CheckCircle2,
   Sparkles,
-  Github
+  Github,
+  UserCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as ss from 'simple-statistics';
 import { cn } from './lib/utils';
 import { processSurveyAggregates } from './lib/stats';
 import { SurveyDetail } from './components/SurveyDetail';
+import { auth, db, googleProvider, handleFirestoreError, OperationType } from './lib/firebase';
+import { signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
+import { collection, onSnapshot, setDoc, doc, deleteDoc } from 'firebase/firestore';
 
 type Tab = 'dashboard' | 'data' | 'pdf' | 'settings';
 
@@ -32,42 +36,98 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [entries, setEntries] = useState<SurveyEntry[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
+  const [user, setUser] = useState<User | null>(null);
 
-  const handleDataLoaded = (data: any[], cols: string[]) => {
-    const newEntries = data.map((d, i) => {
-      const processed = processSurveyAggregates(d);
-      return {
-        id: `r-${i}`,
-        data: processed,
-        included: true
-      };
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
     });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setEntries([]);
+      return;
+    }
     
-    setEntries(newEntries);
-    
-    const aggregateCols = ['Social_Support_Total', 'Hope_Total', 'Death_Attitude_Total'];
-    const finalCols = Array.from(new Set([...cols, ...aggregateCols]));
-    setColumns(finalCols);
-    setActiveTab('dashboard');
+    // Listen to Firebase surveys
+    const q = collection(db, 'surveys');
+    const unsub = onSnapshot(q, (snapshot) => {
+      const loaded: SurveyEntry[] = [];
+      const colSet = new Set<string>();
+      
+      snapshot.forEach(d => {
+        const docData = d.data();
+        if (docData.userId === user.uid) { // Optional client side check, guarded by rules anyway
+          loaded.push({ id: d.id, data: docData, included: true }); // we could store 'included' too, but kept local for now
+          Object.keys(docData).forEach(k => {
+             if (k !== 'createdAt' && k !== 'userId') {
+               colSet.add(k);
+             }
+          });
+        }
+      });
+      
+      setEntries(loaded);
+      
+      const aggregateCols = ['Social_Support_Total', 'Hope_Total', 'Death_Attitude_Total'];
+      const finalCols = Array.from(new Set([...Array.from(colSet), ...aggregateCols]));
+      if(finalCols.length > 0) {
+        setColumns(finalCols);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'surveys');
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  const login = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleDataExtracted = (extractedData: any) => {
-    // If the AI returned an array, take the first item or handle all
-    const dataObj = Array.isArray(extractedData) ? extractedData[0] : extractedData;
-    
-    const processed = processSurveyAggregates(dataObj);
-    const newEntry: SurveyEntry = {
-      id: `ai-${Date.now()}`,
-      data: processed,
-      included: true
-    };
-    
-    setEntries(prev => [...prev, newEntry]);
-    
-    const currentCols = new Set(columns);
-    Object.keys(processed).forEach(key => currentCols.add(key));
-    setColumns(Array.from(currentCols));
+  const handleDataLoaded = async (data: any[], cols: string[]) => {
+    if (!user) {
+      alert("請先登入");
+      return;
+    }
+
+    try {
+      for (let i = 0; i < data.length; i++) {
+        const processed = processSurveyAggregates(data[i]);
+        processed.userId = user.uid;
+        processed.createdAt = Date.now();
+        
+        await setDoc(doc(db, 'surveys', `r-${Date.now()}-${i}`), processed);
+      }
+      setActiveTab('dashboard');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'surveys');
+    }
   };
+
+  const handleDataExtracted = async (extractedData: any) => {
+    if (!user) {
+      alert("請先登入");
+      return;
+    }
+    const dataObj = Array.isArray(extractedData) ? extractedData[0] : extractedData;
+    const processed = processSurveyAggregates(dataObj);
+    processed.userId = user.uid;
+    processed.createdAt = Date.now();
+    
+    try {
+      await setDoc(doc(db, 'surveys', `ai-${Date.now()}`), processed);
+    } catch(error) {
+      handleFirestoreError(error, OperationType.WRITE, 'surveys');
+    }
+  };
+
 
   const toggleEntry = (id: string) => {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, included: !e.included } : e));
@@ -147,7 +207,39 @@ export default function App() {
           <SidebarItem active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<Settings size={18} />} label="分析設定" />
         </nav>
 
-        <div className="mt-auto">
+        <div className="mt-auto space-y-4">
+          <div className="bg-slate-800 p-4 rounded-xl flex items-center gap-3">
+            <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center shrink-0">
+              {user && user.photoURL ? (
+                <img src={user.photoURL} alt="Avatar" className="w-10 h-10 rounded-full" />
+              ) : (
+                <UserCircle className="text-slate-400" size={24} />
+              )}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <div className="text-sm font-bold truncate">{user ? user.displayName || '研究員' : '訪客'}</div>
+              <div className="text-xs text-slate-400 truncate">{user ? user.email : '未登入'}</div>
+            </div>
+          </div>
+          
+          {!user && (
+            <button 
+              onClick={login}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-bold transition-all text-white shadow-lg shadow-blue-500/20"
+            >
+              <UserCircle size={16} /> 登入系統
+            </button>
+          )}
+
+          {user && (
+            <button 
+              onClick={() => auth.signOut()}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold transition-all border border-slate-700"
+            >
+              登出
+            </button>
+          )}
+
           <button 
             onClick={downloadSampleCSV}
             className="w-full flex items-center justify-center gap-2 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold transition-all border border-slate-700"

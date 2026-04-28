@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "Survey": {
+      "title": "Survey",
+      "description": "Represents a completed survey submission.",
+      "type": "object",
+      "properties": {
+        "Gender": { "type": "string" },
+        "Age_Y": { "type": "string" },
+        "Age_M": { "type": "string" },
+        "Education": { "type": "string" },
+        "Marital": { "type": "string" },
+        "Children": { "type": "string" },
+        "Family_Visit": { "type": "string" },
+        "Advance_Directive": { "type": "string" },
+        "Income_Source": { "type": "string" },
+        "Religion": { "type": "string" },
+        "Assistive_Device": { "type": "string" },
+        "Chronic_Disease": { "type": "string" },
+        "ADL": { "type": "number" },
+        "Health_Status": { "type": "string" },
+        "Hope_Future": { "type": "string" },
+        "Main_Supporter": { "type": "string" },
+        "Move_In_Y": { "type": "string" },
+        "Move_In_M": { "type": "string" },
+        "Social_Support_Total": { "type": "number" },
+        "Hope_Total": { "type": "number" },
+        "Death_Attitude_Total": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["createdAt"]
+    }
+  },
+  "firestore": {
+    "surveys": {
+      "schema": { "$ref": "#/entities/Survey" },
+      "description": "Stores all the survey submissions."
+    }
+  }
+}
