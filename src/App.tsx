@@ -54,14 +54,12 @@ export default function App() {
       
       snapshot.forEach(d => {
         const docData = d.data();
-        if (docData.userId === localUserId) { // Optional client side check
-          loaded.push({ id: d.id, data: docData, included: true }); // we could store 'included' too, but kept local for now
-          Object.keys(docData).forEach(k => {
-             if (k !== 'createdAt' && k !== 'userId') {
-               colSet.add(k);
-             }
-          });
-        }
+        loaded.push({ id: d.id, data: docData, included: true }); // we could store 'included' too, but kept local for now
+        Object.keys(docData).forEach(k => {
+           if (k !== 'createdAt' && k !== 'userId') {
+             colSet.add(k);
+           }
+        });
       });
       
       setEntries(loaded);
@@ -85,25 +83,53 @@ export default function App() {
         setColumns(finalCols);
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'surveys');
+      console.warn("Firebase listener failed or unavailable. Continuing in local-only mode.", error);
     });
 
     return () => unsub();
   }, [localUserId]);
 
+  const addLocalEntry = (id: string, processed: any) => {
+    setEntries(prev => {
+      if (prev.find(e => e.id === id)) return prev;
+      return [...prev, { id, data: processed, included: true }];
+    });
+    setColumns(prev => {
+      const colSet = new Set(prev);
+      Object.keys(processed).forEach(k => {
+        if (k !== 'createdAt' && k !== 'userId') colSet.add(k);
+      });
+      const aggregateCols = ['Social_Support_Total', 'Hope_Total', 'Death_Attitude_Total'];
+      const rawCols = Array.from(colSet);
+      
+      const orderedCols: string[] = [];
+      columnGroups.forEach(g => {
+        g.options.forEach(opt => {
+          if (rawCols.includes(opt) || aggregateCols.includes(opt)) {
+            if(!orderedCols.includes(opt)) orderedCols.push(opt);
+          }
+        });
+      });
+      const rest = rawCols.filter(c => !orderedCols.includes(c));
+      return [...orderedCols, ...rest];
+    });
+  };
+
   const handleDataLoaded = async (data: any[], cols: string[]) => {
-    try {
-      for (let i = 0; i < data.length; i++) {
-        const processed = processSurveyAggregates(data[i]);
-        processed.userId = localUserId;
-        processed.createdAt = Date.now();
-        
-        await setDoc(doc(db, 'surveys', `r-${Date.now()}-${i}`), processed);
+    for (let i = 0; i < data.length; i++) {
+      const processed = processSurveyAggregates(data[i]);
+      processed.userId = localUserId;
+      processed.createdAt = Date.now();
+      const id = `r-${Date.now()}-${i}`;
+      
+      try {
+        await setDoc(doc(db, 'surveys', id), processed);
+      } catch (error) {
+        console.warn("Firebase save failed, falling back to local state.", error);
+        addLocalEntry(id, processed);
       }
-      setActiveTab('dashboard');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'surveys');
     }
+    setActiveTab('dashboard');
   };
 
   const handleDataExtracted = async (extractedData: any) => {
@@ -122,14 +148,38 @@ export default function App() {
     const processed = processSurveyAggregates(dataObj);
     processed.userId = localUserId;
     processed.createdAt = Date.now();
+    const id = `ai-${Date.now()}`;
     
     try {
-      await setDoc(doc(db, 'surveys', `ai-${Date.now()}`), processed);
+      await setDoc(doc(db, 'surveys', id), processed);
     } catch(error) {
-      handleFirestoreError(error, OperationType.WRITE, 'surveys');
+      console.warn("Firebase save failed, falling back to local state.", error);
+      addLocalEntry(id, processed);
     }
   };
 
+  const deleteEntry = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      await deleteDoc(doc(db, 'surveys', id));
+    } catch(error) {
+      console.warn("Firebase delete failed, falling back to local state.", error);
+      setEntries(prev => prev.filter(en => en.id !== id));
+    }
+  };
+
+  const updateEntry = async (id: string, updatedData: any) => {
+    const processed = processSurveyAggregates(updatedData);
+    processed.userId = localUserId;
+    processed.createdAt = Date.now();
+    try {
+      await setDoc(doc(db, 'surveys', id), processed);
+      // Local state will update via onSnapshot
+    } catch(error) {
+      console.warn("Firebase save failed, falling back to local state.", error);
+      setEntries(prev => prev.map(e => e.id === id ? { ...e, data: processed } : e));
+    }
+  };
 
   const toggleEntry = (id: string) => {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, included: !e.included } : e));
@@ -264,7 +314,7 @@ export default function App() {
                 )}
 
                 {activeTab === 'data' && (
-                  <DataTableView entries={entries} columns={columns} onToggle={toggleEntry} onToggleAll={toggleAll} />
+                  <DataTableView entries={entries} columns={columns} onToggle={toggleEntry} onToggleAll={toggleAll} onDelete={deleteEntry} onUpdate={updateEntry} />
                 )}
 
                 {activeTab === 'pdf' && (
@@ -346,7 +396,9 @@ function WelcomeView({ onDataLoaded, onPdfClick }: { onDataLoaded: (d: any[], c:
   );
 }
 
-function DataTableView({ entries, columns, onToggle, onToggleAll }: { entries: SurveyEntry[], columns: string[], onToggle: (id: string) => void, onToggleAll: (inc: boolean) => void }) {
+import { Trash2 } from 'lucide-react';
+
+function DataTableView({ entries, columns, onToggle, onToggleAll, onDelete, onUpdate }: { entries: SurveyEntry[], columns: string[], onToggle: (id: string) => void, onToggleAll: (inc: boolean) => void, onDelete: (id: string, e?: React.MouseEvent) => void, onUpdate: (id: string, data: any) => void }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEntry, setSelectedEntry] = useState<SurveyEntry | null>(null);
 
@@ -355,7 +407,7 @@ function DataTableView({ entries, columns, onToggle, onToggleAll }: { entries: S
   );
 
   if (selectedEntry) {
-    return <SurveyDetail entry={selectedEntry} onBack={() => setSelectedEntry(null)} />;
+    return <SurveyDetail entry={selectedEntry} onBack={() => setSelectedEntry(null)} onUpdate={(data) => onUpdate(selectedEntry.id, data)} />;
   }
 
   return (
@@ -382,6 +434,7 @@ function DataTableView({ entries, columns, onToggle, onToggleAll }: { entries: S
           <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
             <tr>
               <th className="px-6 py-4 font-bold text-slate-500 w-16">選入</th>
+              <th className="px-6 py-4 font-bold text-slate-500 w-16">選項</th>
               {columns.map(c => <th key={c} className="px-6 py-4 font-bold text-slate-500 whitespace-nowrap">{getColumnTitle(c)}</th>)}
             </tr>
           </thead>
@@ -395,6 +448,11 @@ function DataTableView({ entries, columns, onToggle, onToggleAll }: { entries: S
                 <td className="px-6 py-4" onClick={(ev) => ev.stopPropagation()}>
                   <button onClick={() => onToggle(e.id)} className={cn("w-5 h-5 rounded border flex items-center justify-center transition-colors", e.included ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 text-transparent")}>
                     <CheckCircle2 size={12} />
+                  </button>
+                </td>
+                <td className="px-6 py-4" onClick={(ev) => ev.stopPropagation()}>
+                  <button onClick={(ev) => onDelete(e.id, ev)} className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors">
+                    <Trash2 size={16} />
                   </button>
                 </td>
                 {columns.map(c => {
@@ -526,12 +584,38 @@ function StatsWrapper({ data, columns }: { data: any[], columns: string[] }) {
         <div className="flex flex-col">
           <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-widest">因果分析變數</span>
           <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-            <select value={x} onChange={e => setX(e.target.value)} className="bg-transparent border-none text-sm font-bold p-0 focus:ring-0 outline-none">
-              {columns.map(c => <option key={c} value={c}>{getColumnTitle(c)}</option>)}
+            <select value={x} onChange={e => setX(e.target.value)} className="bg-transparent border-none text-sm font-bold p-0 focus:ring-0 outline-none w-48">
+              {columnGroups.map(group => {
+                const opts = group.options.filter(c => columns.includes(c));
+                if (opts.length === 0) return null;
+                return (
+                  <optgroup key={group.label} label={group.label}>
+                    {opts.map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
+                  </optgroup>
+                );
+              })}
+              {columns.filter(c => !columnGroups.some(g => g.options.includes(c))).length > 0 && (
+                <optgroup label="其他">
+                   {columns.filter(c => !columnGroups.some(g => g.options.includes(c))).map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
+                </optgroup>
+              )}
             </select>
             <span className="text-slate-300">→</span>
-            <select value={y} onChange={e => setY(e.target.value)} className="bg-transparent border-none text-sm font-bold p-0 focus:ring-0 outline-none">
-              {columns.map(c => <option key={c} value={c}>{getColumnTitle(c)}</option>)}
+            <select value={y} onChange={e => setY(e.target.value)} className="bg-transparent border-none text-sm font-bold p-0 focus:ring-0 outline-none w-48 text-blue-600">
+               {columnGroups.map(group => {
+                const opts = group.options.filter(c => columns.includes(c));
+                if (opts.length === 0) return null;
+                return (
+                  <optgroup key={group.label} label={group.label}>
+                    {opts.map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
+                  </optgroup>
+                );
+              })}
+              {columns.filter(c => !columnGroups.some(g => g.options.includes(c))).length > 0 && (
+                <optgroup label="其他">
+                   {columns.filter(c => !columnGroups.some(g => g.options.includes(c))).map(col => <option key={col} value={col}>{getColumnTitle(col)}</option>)}
+                </optgroup>
+              )}
             </select>
           </div>
         </div>
